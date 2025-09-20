@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import JsBarcode from 'jsbarcode';
+import jsPDF from 'jspdf';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, BarChart3, Settings } from 'lucide-react';
+import { Download, BarChart3, Settings, FileImage, FileText } from 'lucide-react';
 
 interface BarcodeGeneratorProps {}
+
+type DownloadFormat = 'png' | 'svg' | 'pdf';
 
 const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = () => {
   const [text, setText] = useState('123456789012');
@@ -20,6 +23,7 @@ const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = () => {
   const [textPosition, setTextPosition] = useState('bottom');
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
   const [lineColor, setLineColor] = useState('#000000');
+  const [downloadFormat, setDownloadFormat] = useState<DownloadFormat>('png');
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const barcodeFormats = [
@@ -50,12 +54,64 @@ const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = () => {
     generateBarcode();
   }, [text, format, width, height, displayValue, fontSize, textAlign, textPosition, backgroundColor, lineColor]);
 
-  const downloadBarcode = () => {
-    if (canvasRef.current) {
-      const link = document.createElement('a');
-      link.download = 'barcode.png';
-      link.href = canvasRef.current.toDataURL();
-      link.click();
+  const generateSVG = () => {
+    try {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      JsBarcode(svg, text, {
+        format: format,
+        width: width,
+        height: height,
+        displayValue: displayValue,
+        fontSize: fontSize,
+        textAlign: textAlign as any,
+        textPosition: textPosition as any,
+        background: backgroundColor,
+        lineColor: lineColor,
+      });
+      return new XMLSerializer().serializeToString(svg);
+    } catch (error) {
+      console.error('Error generating SVG:', error);
+      return null;
+    }
+  };
+
+  const downloadBarcode = async () => {
+    switch (downloadFormat) {
+      case 'png':
+        if (canvasRef.current) {
+          const link = document.createElement('a');
+          link.download = 'barcode.png';
+          link.href = canvasRef.current.toDataURL();
+          link.click();
+        }
+        break;
+
+      case 'svg':
+        const svgString = generateSVG();
+        if (svgString) {
+          const blob = new Blob([svgString], { type: 'image/svg+xml' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = 'barcode.svg';
+          link.href = url;
+          link.click();
+          URL.revokeObjectURL(url);
+        }
+        break;
+
+      case 'pdf':
+        if (canvasRef.current) {
+          const pdf = new jsPDF();
+          const imgData = canvasRef.current.toDataURL('image/png');
+          const imgWidth = 150;
+          const imgHeight = (canvasRef.current.height * imgWidth) / canvasRef.current.width;
+          const x = (pdf.internal.pageSize.getWidth() - imgWidth) / 2;
+          const y = (pdf.internal.pageSize.getHeight() - imgHeight) / 2;
+          
+          pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+          pdf.save('barcode.pdf');
+        }
+        break;
     }
   };
 
@@ -203,9 +259,38 @@ const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = () => {
             <Label htmlFor="displayValue">Show text below barcode</Label>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="downloadFormat">Download Format</Label>
+            <Select value={downloadFormat} onValueChange={(value: DownloadFormat) => setDownloadFormat(value)}>
+              <SelectTrigger className="bg-background/50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="png">
+                  <div className="flex items-center gap-2">
+                    <FileImage className="w-4 h-4" />
+                    PNG Image
+                  </div>
+                </SelectItem>
+                <SelectItem value="svg">
+                  <div className="flex items-center gap-2">
+                    <FileImage className="w-4 h-4" />
+                    SVG Vector
+                  </div>
+                </SelectItem>
+                <SelectItem value="pdf">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    PDF Document
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <Button onClick={downloadBarcode} className="w-full" variant="gradient">
             <Download className="w-4 h-4 mr-2" />
-            Download Barcode
+            Download as {downloadFormat.toUpperCase()}
           </Button>
         </CardContent>
       </Card>
