@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
+import jsPDF from 'jspdf';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, Palette, Settings, Heart, Circle, Square, Star } from 'lucide-react';
+import { Download, Palette, Settings, Heart, Circle, Square, Star, FileImage, FileText } from 'lucide-react';
 
 interface QRCodeGeneratorProps {}
 
 type QRCodeStyle = 'standard' | 'rounded' | 'heart' | 'dots' | 'star';
+type DownloadFormat = 'png' | 'svg' | 'pdf';
 
 const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = () => {
   const [text, setText] = useState('Hello World!');
@@ -21,6 +23,7 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = () => {
   const [margin, setMargin] = useState(4);
   const [qrStyle, setQrStyle] = useState<QRCodeStyle>('standard');
   const [cornerRadius, setCornerRadius] = useState(10);
+  const [downloadFormat, setDownloadFormat] = useState<DownloadFormat>('png');
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const generateStyledQRCode = async () => {
@@ -172,12 +175,63 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = () => {
     }
   }, [text, errorCorrectionLevel, size, foregroundColor, backgroundColor, margin, qrStyle, cornerRadius]);
 
-  const downloadQRCode = () => {
-    if (qrCodeDataUrl) {
-      const link = document.createElement('a');
-      link.download = 'qrcode.png';
-      link.href = qrCodeDataUrl;
-      link.click();
+  const generateSVG = async () => {
+    try {
+      const svgString = await QRCode.toString(text, {
+        type: 'svg',
+        errorCorrectionLevel,
+        margin,
+        color: {
+          dark: foregroundColor,
+          light: backgroundColor,
+        },
+        width: size,
+      });
+      return svgString;
+    } catch (error) {
+      console.error('Error generating SVG:', error);
+      return null;
+    }
+  };
+
+  const downloadQRCode = async () => {
+    if (!qrCodeDataUrl && downloadFormat !== 'svg') return;
+
+    switch (downloadFormat) {
+      case 'png':
+        if (qrCodeDataUrl) {
+          const link = document.createElement('a');
+          link.download = 'qrcode.png';
+          link.href = qrCodeDataUrl;
+          link.click();
+        }
+        break;
+
+      case 'svg':
+        const svgString = await generateSVG();
+        if (svgString) {
+          const blob = new Blob([svgString], { type: 'image/svg+xml' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = 'qrcode.svg';
+          link.href = url;
+          link.click();
+          URL.revokeObjectURL(url);
+        }
+        break;
+
+      case 'pdf':
+        if (qrCodeDataUrl) {
+          const pdf = new jsPDF();
+          const imgWidth = 100;
+          const imgHeight = 100;
+          const x = (pdf.internal.pageSize.getWidth() - imgWidth) / 2;
+          const y = (pdf.internal.pageSize.getHeight() - imgHeight) / 2;
+          
+          pdf.addImage(qrCodeDataUrl, 'PNG', x, y, imgWidth, imgHeight);
+          pdf.save('qrcode.pdf');
+        }
+        break;
     }
   };
 
@@ -340,9 +394,38 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = () => {
             </div>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="downloadFormat">Download Format</Label>
+            <Select value={downloadFormat} onValueChange={(value: DownloadFormat) => setDownloadFormat(value)}>
+              <SelectTrigger className="bg-background/50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="png">
+                  <div className="flex items-center gap-2">
+                    <FileImage className="w-4 h-4" />
+                    PNG Image
+                  </div>
+                </SelectItem>
+                <SelectItem value="svg">
+                  <div className="flex items-center gap-2">
+                    <FileImage className="w-4 h-4" />
+                    SVG Vector
+                  </div>
+                </SelectItem>
+                <SelectItem value="pdf">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    PDF Document
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <Button onClick={downloadQRCode} className="w-full" variant="gradient">
             <Download className="w-4 h-4 mr-2" />
-            Download QR Code
+            Download as {downloadFormat.toUpperCase()}
           </Button>
         </CardContent>
       </Card>
