@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, Palette, Settings, Heart, Circle, Square, Star, FileImage, FileText } from 'lucide-react';
+import { Download, Palette, Settings, Heart, Circle, Square, Star, FileImage, FileText, Upload, ImageIcon } from 'lucide-react';
 
 interface QRCodeGeneratorProps {}
 
@@ -24,7 +24,11 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = () => {
   const [qrStyle, setQrStyle] = useState<QRCodeStyle>('standard');
   const [cornerRadius, setCornerRadius] = useState(10);
   const [downloadFormat, setDownloadFormat] = useState<DownloadFormat>('png');
+  const [iconFile, setIconFile] = useState<File | null>(null);
+  const [iconDataUrl, setIconDataUrl] = useState<string>('');
+  const [iconSize, setIconSize] = useState(20);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const generateStyledQRCode = async () => {
     try {
@@ -62,6 +66,11 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = () => {
             drawStyledModule(ctx, x, y, moduleSize, qrStyle, row, col, moduleCount);
           }
         }
+      }
+
+      // Add icon overlay if uploaded
+      if (iconDataUrl) {
+        await drawIconOverlay(ctx, canvas.width, canvas.height);
       }
 
       const dataUrl = canvas.toDataURL('image/png');
@@ -140,6 +149,48 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = () => {
     ctx.fill();
   };
 
+  const drawIconOverlay = async (ctx: CanvasRenderingContext2D, canvasWidth: number, canvasHeight: number) => {
+    return new Promise<void>((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const iconSizePixels = (iconSize / 100) * Math.min(canvasWidth, canvasHeight);
+        const x = (canvasWidth - iconSizePixels) / 2;
+        const y = (canvasHeight - iconSizePixels) / 2;
+        
+        // Create a white background circle for the icon
+        ctx.fillStyle = backgroundColor;
+        ctx.beginPath();
+        ctx.arc(x + iconSizePixels/2, y + iconSizePixels/2, iconSizePixels/2 + 4, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Draw the icon
+        ctx.drawImage(img, x, y, iconSizePixels, iconSizePixels);
+        resolve();
+      };
+      img.src = iconDataUrl;
+    });
+  };
+
+  const handleIconUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setIconFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setIconDataUrl(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeIcon = () => {
+    setIconFile(null);
+    setIconDataUrl('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const generateQRCode = () => {
     if (qrStyle === 'standard') {
       generateStandardQRCode();
@@ -163,7 +214,30 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = () => {
       };
 
       const dataUrl = await QRCode.toDataURL(text, options);
-      setQrCodeDataUrl(dataUrl);
+      
+      // Add icon overlay for standard QR codes if icon is uploaded
+      if (iconDataUrl) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          const img = new Image();
+          img.onload = async () => {
+            canvas.width = size;
+            canvas.height = size;
+            
+            // Draw QR code
+            const qrImg = new Image();
+            qrImg.onload = async () => {
+              ctx.drawImage(qrImg, 0, 0);
+              await drawIconOverlay(ctx, canvas.width, canvas.height);
+              setQrCodeDataUrl(canvas.toDataURL('image/png'));
+            };
+            qrImg.src = dataUrl;
+          };
+        }
+      } else {
+        setQrCodeDataUrl(dataUrl);
+      }
     } catch (error) {
       console.error('Error generating QR code:', error);
     }
@@ -173,7 +247,7 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = () => {
     if (text) {
       generateQRCode();
     }
-  }, [text, errorCorrectionLevel, size, foregroundColor, backgroundColor, margin, qrStyle, cornerRadius]);
+  }, [text, errorCorrectionLevel, size, foregroundColor, backgroundColor, margin, qrStyle, cornerRadius, iconDataUrl, iconSize]);
 
   const generateSVG = async () => {
     try {
@@ -355,6 +429,61 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = () => {
               />
             </div>
           )}
+
+          <div className="space-y-4">
+            <Label>Icon Upload</Label>
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleIconUpload}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex-1"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Icon
+                </Button>
+                {iconFile && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={removeIcon}
+                    size="sm"
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
+              
+              {iconFile && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <ImageIcon className="w-4 h-4" />
+                    {iconFile.name}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="iconSize">Icon Size (%)</Label>
+                    <Input
+                      id="iconSize"
+                      type="number"
+                      value={iconSize}
+                      onChange={(e) => setIconSize(Number(e.target.value))}
+                      min="5"
+                      max="50"
+                      className="bg-background/50"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
