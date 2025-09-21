@@ -7,6 +7,11 @@ import BarcodeGenerator from '@/components/BarcodeGenerator';
 import { QrCode, BarChart3, Sparkles, Download, Zap, Shield, ArrowRight, Star, Users } from 'lucide-react';
 
 const Index = () => {
+  const scrollToGenerator = () => {
+    const generatorSection = document.getElementById('generator-section');
+    generatorSection?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-background overflow-hidden">
       {/* Hero Section */}
@@ -65,11 +70,20 @@ const Index = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12 animate-fade-in">
-              <Button size="lg" className="group px-8 py-6 text-lg font-semibold gradient-primary hover:scale-105 transition-all duration-300 glow-primary">
+              <Button 
+                size="lg" 
+                className="group px-8 py-6 text-lg font-semibold gradient-primary hover:scale-105 transition-all duration-300 glow-primary shadow-2xl"
+                onClick={scrollToGenerator}
+              >
                 Start Creating
                 <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
-              <Button variant="outline" size="lg" className="px-8 py-6 text-lg hover:scale-105 transition-all duration-300">
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="px-8 py-6 text-lg hover:scale-105 transition-all duration-300 border-primary/30 hover:border-primary/50"
+                onClick={scrollToGenerator}
+              >
                 View Examples
               </Button>
             </div>
@@ -169,7 +183,7 @@ const Index = () => {
         </section>
 
         {/* Generator Section */}
-        <section className="py-16">
+        <section id="generator-section" className="py-16">
           <div className="text-center mb-12">
             <h2 className="text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
               Start Creating Now
@@ -179,15 +193,15 @@ const Index = () => {
             </p>
           </div>
 
-          <Card className="gradient-secondary/10 border-secondary/20 backdrop-blur-xl">
+          <Card className="gradient-secondary/10 border-secondary/20 backdrop-blur-xl shadow-2xl">
             <CardContent className="p-8">
               <Tabs defaultValue="qrcode" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-8 bg-background/50 backdrop-blur-xl p-1 h-14">
-                  <TabsTrigger value="qrcode" className="flex items-center gap-2 h-12 text-base font-medium data-[state=active]:gradient-primary data-[state=active]:text-white">
+                <TabsList className="grid w-full grid-cols-2 mb-8 bg-background/50 backdrop-blur-xl p-1 h-14 shadow-lg">
+                  <TabsTrigger value="qrcode" className="flex items-center gap-2 h-12 text-base font-medium data-[state=active]:gradient-primary data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
                     <QrCode className="w-5 h-5" />
                     QR Code Generator
                   </TabsTrigger>
-                  <TabsTrigger value="barcode" className="flex items-center gap-2 h-12 text-base font-medium data-[state=active]:gradient-primary data-[state=active]:text-white">
+                  <TabsTrigger value="barcode" className="flex items-center gap-2 h-12 text-base font-medium data-[state=active]:gradient-primary data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300">
                     <BarChart3 className="w-5 h-5" />
                     Barcode Generator
                   </TabsTrigger>
@@ -216,7 +230,11 @@ const Index = () => {
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             Join thousands of users who trust our platform for their code generation needs
           </p>
-          <Button size="lg" className="gradient-primary hover:scale-105 transition-all duration-300 glow-primary px-8 py-6 text-lg font-semibold">
+          <Button 
+            size="lg" 
+            className="gradient-primary hover:scale-105 transition-all duration-300 glow-primary px-8 py-6 text-lg font-semibold shadow-2xl"
+            onClick={scrollToGenerator}
+          >
             Get Started Free
             <Sparkles className="w-5 h-5 ml-2" />
           </Button>
